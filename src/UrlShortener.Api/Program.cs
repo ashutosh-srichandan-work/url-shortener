@@ -1,5 +1,6 @@
 ﻿using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using UrlShortener.Api.Middleware;
 using UrlShortener.Api.Services;
 using UrlShortener.Domain.Interfaces;
 using UrlShortener.Infrastructure.Data;
@@ -26,6 +27,8 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
 }
+
+app.UseMiddleware<GlobalExceptionMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {

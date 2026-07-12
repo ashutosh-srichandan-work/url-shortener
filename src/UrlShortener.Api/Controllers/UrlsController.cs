@@ -21,7 +21,7 @@ public class UrlsController : ControllerBase
     [HttpPost]
     [ProducesResponseType(typeof(ShortUrlResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Create([FromBody] CreateShortUrlRequest request)
     {
         var validationResult = await _validator.ValidateAsync(request);
@@ -34,30 +34,23 @@ public class UrlsController : ControllerBase
             return ValidationProblem(new ValidationProblemDetails(errors));
         }
 
-        try
-        {
-            var baseUrl = $"{Request.Scheme}://{Request.Host}";
-            var result = await _service.CreateShortUrlAsync(request.Url, request.CustomAlias, request.ExpiresAtUtc, baseUrl);
+        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+        var result = await _service.CreateShortUrlAsync(request.Url, request.CustomAlias, request.ExpiresAtUtc, baseUrl);
 
-            var response = new ShortUrlResponse
-            {
-                Id = result.Id,
-                OriginalUrl = result.OriginalUrl,
-                ShortCode = result.ShortCode,
-                ShortUrl = result.ShortUrl,
-                CreatedAtUtc = result.CreatedAtUtc,
-                ExpiresAtUtc = result.ExpiresAtUtc,
-                ClickCount = 0,
-                LastAccessedAtUtc = null,
-                Status = "Active"
-            };
-
-            return CreatedAtAction(nameof(GetById), new { id = response.Id }, response);
-        }
-        catch (InvalidOperationException ex)
+        var response = new ShortUrlResponse
         {
-            return Conflict(ex.Message);
-        }
+            Id = result.Id,
+            OriginalUrl = result.OriginalUrl,
+            ShortCode = result.ShortCode,
+            ShortUrl = result.ShortUrl,
+            CreatedAtUtc = result.CreatedAtUtc,
+            ExpiresAtUtc = result.ExpiresAtUtc,
+            ClickCount = 0,
+            LastAccessedAtUtc = null,
+            Status = "Active"
+        };
+
+        return CreatedAtAction(nameof(GetById), new { id = response.Id }, response);
     }
 
     [HttpGet("{id:guid}")]
