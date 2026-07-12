@@ -6,7 +6,7 @@ namespace UrlShortener.Api.Services;
 public interface IUrlShortenerService
 {
     Task<CreateShortUrlResult> CreateShortUrlAsync(string url, string? customAlias, string baseUrl);
-    Task<string?> GetOriginalUrlAsync(string shortCode);
+    Task<string?> GetOriginalUrlAndTrackClickAsync(string shortCode);
     Task<ShortUrlDetails?> GetUrlDetailsAsync(Guid id);
 }
 
@@ -26,6 +26,8 @@ public class ShortUrlDetails
     public string ShortCode { get; set; } = string.Empty;
     public string ShortUrl { get; set; } = string.Empty;
     public DateTime CreatedAtUtc { get; set; }
+    public int ClickCount { get; set; }
+    public DateTime? LastAccessedAtUtc { get; set; }
 }
 
 public class UrlShortenerService : IUrlShortenerService
@@ -64,10 +66,16 @@ public class UrlShortenerService : IUrlShortenerService
         };
     }
 
-    public async Task<string?> GetOriginalUrlAsync(string shortCode)
+    public async Task<string?> GetOriginalUrlAndTrackClickAsync(string shortCode)
     {
         var entity = await _repository.GetByShortCodeAsync(shortCode);
-        return entity?.OriginalUrl;
+        if (entity is null) return null;
+
+        entity.ClickCount++;
+        entity.LastAccessedAtUtc = DateTime.UtcNow;
+        await _repository.UpdateAsync(entity);
+
+        return entity.OriginalUrl;
     }
 
     public async Task<ShortUrlDetails?> GetUrlDetailsAsync(Guid id)
@@ -81,7 +89,9 @@ public class UrlShortenerService : IUrlShortenerService
             OriginalUrl = entity.OriginalUrl,
             ShortCode = entity.ShortCode,
             ShortUrl = entity.ShortCode,
-            CreatedAtUtc = entity.CreatedAtUtc
+            CreatedAtUtc = entity.CreatedAtUtc,
+            ClickCount = entity.ClickCount,
+            LastAccessedAtUtc = entity.LastAccessedAtUtc
         };
     }
 

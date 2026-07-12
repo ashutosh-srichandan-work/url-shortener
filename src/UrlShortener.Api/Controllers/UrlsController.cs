@@ -39,7 +39,9 @@ public class UrlsController : ControllerBase
                 OriginalUrl = result.OriginalUrl,
                 ShortCode = result.ShortCode,
                 ShortUrl = result.ShortUrl,
-                CreatedAtUtc = result.CreatedAtUtc
+                CreatedAtUtc = result.CreatedAtUtc,
+                ClickCount = 0,
+                LastAccessedAtUtc = null
             };
 
             return CreatedAtAction(nameof(GetById), new { id = response.Id }, response);
@@ -65,7 +67,9 @@ public class UrlsController : ControllerBase
             OriginalUrl = details.OriginalUrl,
             ShortCode = details.ShortCode,
             ShortUrl = details.ShortUrl,
-            CreatedAtUtc = details.CreatedAtUtc
+            CreatedAtUtc = details.CreatedAtUtc,
+            ClickCount = details.ClickCount,
+            LastAccessedAtUtc = details.LastAccessedAtUtc
         };
 
         return Ok(response);
@@ -75,7 +79,7 @@ public class UrlsController : ControllerBase
     [ApiExplorerSettings(IgnoreApi = true)]
     public async Task<IActionResult> RedirectToUrl(string shortCode)
     {
-        var originalUrl = await _service.GetOriginalUrlAsync(shortCode);
+        var originalUrl = await _service.GetOriginalUrlAndTrackClickAsync(shortCode);
         if (originalUrl is null)
             return NotFound("Short URL not found.");
 
