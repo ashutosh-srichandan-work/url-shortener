@@ -11,8 +11,8 @@ using UrlShortener.Infrastructure.Data;
 namespace UrlShortener.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260712155339_AddClickTracking")]
-    partial class AddClickTracking
+    [Migration("20260712124055_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -31,6 +31,19 @@ namespace UrlShortener.Infrastructure.Data.Migrations
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ExpiresAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("INTEGER");
 
                     b.Property<DateTime?>("LastAccessedAtUtc")
                         .HasColumnType("TEXT");

@@ -1,7 +1,7 @@
-﻿using FluentValidation;
-using UrlShortener.Api.DTOs;
+using FluentValidation;
+using UrlShortener.Application.DTOs;
 
-namespace UrlShortener.Api.Validators;
+namespace UrlShortener.Application.Validators;
 
 public class CreateShortUrlRequestValidator : AbstractValidator<CreateShortUrlRequest>
 {
@@ -9,7 +9,7 @@ public class CreateShortUrlRequestValidator : AbstractValidator<CreateShortUrlRe
     {
         RuleFor(x => x.Url)
             .NotEmpty().WithMessage("URL is required.")
-            .Must(BeAValidUrl).WithMessage("URL must be a valid HTTP or HTTPS URL.");
+            .Must(BeAValidUrl).WithMessage("URL must be a valid absolute URL.");
 
         RuleFor(x => x.CustomAlias)
             .MinimumLength(3).When(x => !string.IsNullOrEmpty(x.CustomAlias))

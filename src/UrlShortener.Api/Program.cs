@@ -1,13 +1,11 @@
-﻿using System.Threading.RateLimiting;
-using FluentValidation;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using UrlShortener.Api.Middleware;
-using UrlShortener.Api.Services;
-using UrlShortener.Domain.Interfaces;
+using UrlShortener.Application;
+using UrlShortener.Infrastructure;
 using UrlShortener.Infrastructure.Data;
-using UrlShortener.Infrastructure.Repositories;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -25,35 +23,18 @@ try
         .WriteTo.Console()
         .WriteTo.File("logs/log-.txt", rollingInterval: RollingInterval.Day));
 
-    builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-    builder.Services.AddScoped<IShortUrlRepository, ShortUrlRepository>();
-    builder.Services.AddScoped<IUrlShortenerService, UrlShortenerService>();
-
-    builder.Services.AddValidatorsFromAssemblyContaining<Program>();
-
-    builder.Services.AddHealthChecks()
-        .AddDbContextCheck<AppDbContext>();
-
     builder.Services.AddRateLimiter(options =>
     {
         options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-
-        options.AddFixedWindowLimiter("fixed", limiterOptions =>
+        options.AddFixedWindowLimiter("fixed", opt =>
         {
-            limiterOptions.PermitLimit = 100;
-            limiterOptions.Window = TimeSpan.FromMinutes(1);
-            limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-            limiterOptions.QueueLimit = 10;
+            opt.PermitLimit = 100;
+            opt.Window = TimeSpan.FromMinutes(1);
         });
-
-        options.AddFixedWindowLimiter("create", limiterOptions =>
+        options.AddFixedWindowLimiter("create", opt =>
         {
-            limiterOptions.PermitLimit = 20;
-            limiterOptions.Window = TimeSpan.FromMinutes(1);
-            limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-            limiterOptions.QueueLimit = 5;
+            opt.PermitLimit = 20;
+            opt.Window = TimeSpan.FromMinutes(1);
         });
     });
 
@@ -65,13 +46,42 @@ try
         {
             Title = "URL Shortener API",
             Version = "v1",
-            Description = "A production-ready URL Shortener Service built with ASP.NET Core Web API (.NET 8).",
+            Description = @"A production-ready URL Shortener Service built with ASP.NET Core 8.
+
+## Quick Start
+1. **Create a short link** — `POST /api/v1/links` with a JSON body containing the original URL.
+2. **Use the short link** — Copy the `shortUrl` from the response and open it in a browser. It will redirect to the original URL.
+3. **View analytics** — `GET /api/v1/links/{id}/stats` to see click counts and timestamps.
+4. **Soft-delete** — `DELETE /api/v1/links/{id}` marks the link as deleted (it will no longer redirect).
+
+## Rate Limits
+- **General**: 100 requests/minute across all management endpoints.
+- **Create**: 20 requests/minute for `POST /api/v1/links`.
+- Exceeding limits returns `429 Too Many Requests`.
+
+## Notes
+- All timestamps are in **UTC**.
+- Short codes are **case-sensitive** (e.g., `aBc` ≠ `abc`).
+- Expired or deleted links return `404` on redirect.",
             Contact = new Microsoft.OpenApi.Models.OpenApiContact
             {
                 Name = "URL Shortener Team"
+            },
+            License = new Microsoft.OpenApi.Models.OpenApiLicense
+            {
+                Name = "Internal Use"
             }
         });
+
+        var xmlFilename = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+        options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
     });
+
+    builder.Services.AddApplication();
+    builder.Services.AddInfrastructure(builder.Configuration);
+
+    builder.Services.AddHealthChecks()
+        .AddDbContextCheck<AppDbContext>();
 
     var app = builder.Build();
 
@@ -82,25 +92,24 @@ try
     }
 
     app.UseMiddleware<GlobalExceptionMiddleware>();
-    app.UseRateLimiter();
+
     app.UseSerilogRequestLogging();
 
     if (app.Environment.IsDevelopment())
     {
         app.UseSwagger();
-        app.UseSwaggerUI(options =>
-        {
-            options.SwaggerEndpoint("/swagger/v1/swagger.json", "URL Shortener API v1");
-            options.DocumentTitle = "URL Shortener API";
-        });
+        app.UseSwaggerUI();
     }
-
-    app.UseHttpsRedirection();
+    else
+    {
+        app.UseHttpsRedirection();
+    }
+    app.UseRateLimiter();
     app.UseAuthorization();
+
     app.MapControllers();
     app.MapHealthChecks("/health");
 
-    Log.Information("URL Shortener API started successfully");
     app.Run();
 }
 catch (Exception ex)

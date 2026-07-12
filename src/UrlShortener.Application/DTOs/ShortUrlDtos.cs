@@ -1,4 +1,4 @@
-﻿namespace UrlShortener.Api.DTOs;
+namespace UrlShortener.Application.DTOs;
 
 public record CreateShortUrlRequest
 {
@@ -11,8 +11,8 @@ public record ShortUrlResponse
 {
     public Guid Id { get; init; }
     public string OriginalUrl { get; init; } = string.Empty;
-    public string ShortCode { get; init; } = string.Empty;
     public string ShortUrl { get; init; } = string.Empty;
+    public string ShortCode { get; init; } = string.Empty;
     public DateTime CreatedAtUtc { get; init; }
     public DateTime? ExpiresAtUtc { get; init; }
     public int ClickCount { get; init; }
@@ -22,7 +22,7 @@ public record ShortUrlResponse
 
 public record PagedResponse<T>
 {
-    public IReadOnlyList<T> Items { get; init; } = [];
+    public IReadOnlyList<T> Items { get; init; } = Array.Empty<T>();
     public int Page { get; init; }
     public int PageSize { get; init; }
     public int TotalCount { get; init; }

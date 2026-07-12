@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 
@@ -23,13 +23,8 @@ public class GlobalExceptionMiddleware
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, "Business rule violation: {Message}", ex.Message);
+            _logger.LogWarning(ex, "Business rule violation");
             await WriteProblemDetailsAsync(context, HttpStatusCode.Conflict, "Conflict", ex.Message);
-        }
-        catch (ArgumentException ex)
-        {
-            _logger.LogWarning(ex, "Invalid argument: {Message}", ex.Message);
-            await WriteProblemDetailsAsync(context, HttpStatusCode.BadRequest, "Bad Request", ex.Message);
         }
         catch (Exception ex)
         {
@@ -51,11 +46,7 @@ public class GlobalExceptionMiddleware
             Instance = context.Request.Path
         };
 
-        var json = JsonSerializer.Serialize(problemDetails, new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        });
-
+        var json = JsonSerializer.Serialize(problemDetails, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
         await context.Response.WriteAsync(json);
     }
 }

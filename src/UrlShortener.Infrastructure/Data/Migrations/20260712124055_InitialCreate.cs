@@ -18,7 +18,13 @@ namespace UrlShortener.Infrastructure.Data.Migrations
                     Id = table.Column<Guid>(type: "TEXT", nullable: false),
                     OriginalUrl = table.Column<string>(type: "TEXT", maxLength: 2048, nullable: false),
                     ShortCode = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
-                    CreatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    CreatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    ExpiresAtUtc = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    LastAccessedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    ClickCount = table.Column<int>(type: "INTEGER", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "INTEGER", nullable: false),
+                    DeletedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    CreatedBy = table.Column<string>(type: "TEXT", maxLength: 256, nullable: true)
                 },
                 constraints: table =>
                 {

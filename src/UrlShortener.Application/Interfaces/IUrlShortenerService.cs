@@ -1,26 +1,13 @@
+using UrlShortener.Application.DTOs;
+
 namespace UrlShortener.Application.Interfaces;
 
 public interface IUrlShortenerService
 {
-    Task<CreateShortUrlResult> CreateShortUrlAsync(string url, string? customAlias, string baseUrl);
-    Task<string?> GetOriginalUrlAsync(string shortCode);
-    Task<ShortUrlDetails?> GetUrlDetailsAsync(Guid id);
-}
-
-public class CreateShortUrlResult
-{
-    public Guid Id { get; set; }
-    public string OriginalUrl { get; set; } = string.Empty;
-    public string ShortCode { get; set; } = string.Empty;
-    public string ShortUrl { get; set; } = string.Empty;
-    public DateTime CreatedAtUtc { get; set; }
-}
-
-public class ShortUrlDetails
-{
-    public Guid Id { get; set; }
-    public string OriginalUrl { get; set; } = string.Empty;
-    public string ShortCode { get; set; } = string.Empty;
-    public string ShortUrl { get; set; } = string.Empty;
-    public DateTime CreatedAtUtc { get; set; }
+    Task<ShortUrlResponse> CreateShortUrlAsync(CreateShortUrlRequest request, string baseUrl, CancellationToken cancellationToken = default);
+    Task<string?> GetOriginalUrlAndTrackClickAsync(string shortCode, CancellationToken cancellationToken = default);
+    Task<ShortUrlResponse?> GetUrlDetailsAsync(Guid id, string baseUrl, CancellationToken cancellationToken = default);
+    Task<UrlAnalyticsResponse?> GetAnalyticsAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<bool> DeleteUrlAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<PagedResponse<ShortUrlResponse>> GetAllPaginatedAsync(int page, int pageSize, string baseUrl, CancellationToken cancellationToken = default);
 }

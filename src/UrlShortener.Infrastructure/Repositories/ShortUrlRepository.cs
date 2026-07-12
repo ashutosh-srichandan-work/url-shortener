@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using UrlShortener.Domain.Entities;
 using UrlShortener.Domain.Interfaces;
 using UrlShortener.Infrastructure.Data;
@@ -14,46 +14,56 @@ public class ShortUrlRepository : IShortUrlRepository
         _context = context;
     }
 
-    public async Task<ShortUrl?> GetByIdAsync(Guid id)
+    public async Task<ShortUrl?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _context.ShortUrls.FindAsync(id);
+        return await _context.ShortUrls.FindAsync(new object[] { id }, cancellationToken);
     }
 
-    public async Task<ShortUrl?> GetByShortCodeAsync(string shortCode)
+    public async Task<ShortUrl?> GetByShortCodeAsync(string shortCode, CancellationToken cancellationToken = default)
     {
-        return await _context.ShortUrls.FirstOrDefaultAsync(u => u.ShortCode == shortCode);
+        return await _context.ShortUrls
+            .FirstOrDefaultAsync(s => s.ShortCode == shortCode, cancellationToken);
     }
 
-    public async Task<bool> ShortCodeExistsAsync(string shortCode)
+    public async Task<bool> ShortCodeExistsAsync(string shortCode, CancellationToken cancellationToken = default)
     {
-        return await _context.ShortUrls.AnyAsync(u => u.ShortCode == shortCode);
+        return await _context.ShortUrls
+            .AnyAsync(s => s.ShortCode == shortCode, cancellationToken);
     }
 
-    public async Task<(IReadOnlyList<ShortUrl> Items, int TotalCount)> GetAllAsync(int page, int pageSize)
+    public async Task<ShortUrl?> GetByOriginalUrlAsync(string originalUrl, CancellationToken cancellationToken = default)
     {
-        var query = _context.ShortUrls
-            .Where(u => !u.IsDeleted)
-            .OrderByDescending(u => u.CreatedAtUtc);
-
-        var totalCount = await query.CountAsync();
-        var items = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
-
-        return (items, totalCount);
+        return await _context.ShortUrls
+            .FirstOrDefaultAsync(s => s.OriginalUrl == originalUrl && !s.IsDeleted, cancellationToken);
     }
 
-    public async Task<ShortUrl> CreateAsync(ShortUrl shortUrl)
+    public async Task<ShortUrl> CreateAsync(ShortUrl shortUrl, CancellationToken cancellationToken = default)
     {
         _context.ShortUrls.Add(shortUrl);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
         return shortUrl;
     }
 
-    public async Task UpdateAsync(ShortUrl shortUrl)
+    public async Task UpdateAsync(ShortUrl shortUrl, CancellationToken cancellationToken = default)
     {
         _context.ShortUrls.Update(shortUrl);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IEnumerable<ShortUrl>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.ShortUrls.ToListAsync(cancellationToken);
+    }
+
+    public async Task<(IReadOnlyList<ShortUrl> Items, int TotalCount)> GetPaginatedAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var totalCount = await _context.ShortUrls.CountAsync(s => !s.IsDeleted, cancellationToken);
+        var items = await _context.ShortUrls
+            .Where(s => !s.IsDeleted)
+            .OrderByDescending(s => s.CreatedAtUtc)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+        return (items, totalCount);
     }
 }

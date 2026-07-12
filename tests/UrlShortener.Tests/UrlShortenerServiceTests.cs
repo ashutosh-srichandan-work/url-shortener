@@ -1,6 +1,9 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using UrlShortener.Api.Services;
+using Microsoft.Extensions.Logging;
+using Moq;
+using UrlShortener.Application.DTOs;
+using UrlShortener.Application.Services;
 using UrlShortener.Domain.Entities;
 using UrlShortener.Infrastructure.Data;
 using UrlShortener.Infrastructure.Repositories;
@@ -20,34 +23,54 @@ public class UrlShortenerServiceTests : IDisposable
 
         _context = new AppDbContext(options);
         var repository = new ShortUrlRepository(_context);
-        _service = new UrlShortenerService(repository);
+        var logger = new Mock<ILogger<UrlShortenerService>>();
+        _service = new UrlShortenerService(repository, logger.Object);
     }
 
     [Fact]
-    public async Task CreateShortUrl_WithValidRequest_ReturnsResult()
+    public async Task CreateShortUrl_WithValidRequest_ReturnsShortUrlResponse()
     {
-        var result = await _service.CreateShortUrlAsync("https://www.example.com", null, null, "https://localhost");
+        var request = new CreateShortUrlRequest
+        {
+            Url = "https://www.example.com",
+            ExpiresAtUtc = DateTime.UtcNow.AddDays(7)
+        };
+
+        var result = await _service.CreateShortUrlAsync(request, "https://localhost");
 
         result.Should().NotBeNull();
         result.OriginalUrl.Should().Be("https://www.example.com");
         result.ShortCode.Should().NotBeNullOrEmpty();
+        result.Status.Should().Be("Active");
     }
 
     [Fact]
     public async Task CreateShortUrl_WithCustomAlias_UsesAlias()
     {
-        var result = await _service.CreateShortUrlAsync("https://www.example.com", "my-alias", null, "https://localhost");
+        var request = new CreateShortUrlRequest
+        {
+            Url = "https://www.example.com",
+            CustomAlias = "my-alias"
+        };
+
+        var result = await _service.CreateShortUrlAsync(request, "https://localhost");
 
         result.ShortCode.Should().Be("my-alias");
         result.ShortUrl.Should().Be("https://localhost/my-alias");
     }
 
     [Fact]
-    public async Task CreateShortUrl_WithDuplicateAlias_ThrowsException()
+    public async Task CreateShortUrl_WithDuplicateAlias_ThrowsInvalidOperationException()
     {
-        await _service.CreateShortUrlAsync("https://www.example.com", "duplicate", null, "https://localhost");
+        var request = new CreateShortUrlRequest
+        {
+            Url = "https://www.example.com",
+            CustomAlias = "duplicate"
+        };
 
-        var act = () => _service.CreateShortUrlAsync("https://other.com", "duplicate", null, "https://localhost");
+        await _service.CreateShortUrlAsync(request, "https://localhost");
+
+        var act = () => _service.CreateShortUrlAsync(request, "https://localhost");
 
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*duplicate*");
@@ -56,7 +79,13 @@ public class UrlShortenerServiceTests : IDisposable
     [Fact]
     public async Task GetOriginalUrlAndTrackClick_WithValidCode_ReturnsUrlAndIncrementsCount()
     {
-        var created = await _service.CreateShortUrlAsync("https://www.example.com", "click-test", null, "https://localhost");
+        var request = new CreateShortUrlRequest
+        {
+            Url = "https://www.example.com",
+            CustomAlias = "click-test"
+        };
+
+        await _service.CreateShortUrlAsync(request, "https://localhost");
 
         var result = await _service.GetOriginalUrlAndTrackClickAsync("click-test");
 
@@ -112,11 +141,17 @@ public class UrlShortenerServiceTests : IDisposable
     [Fact]
     public async Task DeleteUrl_WithExistingUrl_SoftDeletes()
     {
-        var created = await _service.CreateShortUrlAsync("https://www.example.com", "to-delete", null, "https://localhost");
+        var request = new CreateShortUrlRequest
+        {
+            Url = "https://www.example.com",
+            CustomAlias = "to-delete"
+        };
+        var created = await _service.CreateShortUrlAsync(request, "https://localhost");
 
         var result = await _service.DeleteUrlAsync(created.Id);
 
         result.Should().BeTrue();
+
         var entity = await _context.ShortUrls.FindAsync(created.Id);
         entity!.IsDeleted.Should().BeTrue();
         entity.DeletedAtUtc.Should().NotBeNull();
@@ -132,7 +167,12 @@ public class UrlShortenerServiceTests : IDisposable
     [Fact]
     public async Task GetAnalytics_WithExistingUrl_ReturnsAnalytics()
     {
-        var created = await _service.CreateShortUrlAsync("https://www.example.com", "analytics-test", null, "https://localhost");
+        var request = new CreateShortUrlRequest
+        {
+            Url = "https://www.example.com",
+            CustomAlias = "analytics-test"
+        };
+        var created = await _service.CreateShortUrlAsync(request, "https://localhost");
 
         var result = await _service.GetAnalyticsAsync(created.Id);
 
@@ -144,8 +184,72 @@ public class UrlShortenerServiceTests : IDisposable
     [Fact]
     public async Task GetUrlDetails_WithNonExistentId_ReturnsNull()
     {
-        var result = await _service.GetUrlDetailsAsync(Guid.NewGuid());
+        var result = await _service.GetUrlDetailsAsync(Guid.NewGuid(), "https://localhost");
         result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetUrlDetails_WithExistingId_ReturnsDetails()
+    {
+        var request = new CreateShortUrlRequest
+        {
+            Url = "https://www.example.com",
+            CustomAlias = "details-test"
+        };
+        var created = await _service.CreateShortUrlAsync(request, "https://localhost");
+
+        var result = await _service.GetUrlDetailsAsync(created.Id, "https://localhost");
+
+        result.Should().NotBeNull();
+        result!.ShortUrl.Should().Be("https://localhost/details-test");
+        result.OriginalUrl.Should().Be("https://www.example.com");
+    }
+
+    [Fact]
+    public async Task CreateShortUrl_WithDuplicateUrl_ReturnsExistingShortUrl()
+    {
+        var request = new CreateShortUrlRequest
+        {
+            Url = "https://www.duplicate-test.com"
+        };
+
+        var first = await _service.CreateShortUrlAsync(request, "https://localhost");
+        var second = await _service.CreateShortUrlAsync(request, "https://localhost");
+
+        second.Id.Should().Be(first.Id);
+        second.ShortCode.Should().Be(first.ShortCode);
+    }
+
+    [Fact]
+    public async Task GetAllPaginated_ReturnsCorrectPage()
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            await _service.CreateShortUrlAsync(
+                new CreateShortUrlRequest { Url = $"https://example.com/{i}", CustomAlias = $"page-{i}" },
+                "https://localhost");
+        }
+
+        var result = await _service.GetAllPaginatedAsync(1, 2, "https://localhost");
+
+        result.Items.Should().HaveCount(2);
+        result.TotalCount.Should().Be(5);
+        result.TotalPages.Should().Be(3);
+        result.HasNextPage.Should().BeTrue();
+        result.HasPreviousPage.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetAllPaginated_ExcludesDeletedUrls()
+    {
+        var created = await _service.CreateShortUrlAsync(
+            new CreateShortUrlRequest { Url = "https://example.com/del", CustomAlias = "del-pag" },
+            "https://localhost");
+        await _service.DeleteUrlAsync(created.Id);
+
+        var result = await _service.GetAllPaginatedAsync(1, 10, "https://localhost");
+
+        result.Items.Should().NotContain(x => x.Id == created.Id);
     }
 
     public void Dispose()

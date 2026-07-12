@@ -1,4 +1,4 @@
-﻿# URL Shortener API
+# URL Shortener API
 
 A production-ready URL Shortener Service built with **ASP.NET Core (.NET 8)**, Entity Framework Core, and SQLite. Developed incrementally using AI-assisted programming to demonstrate real-world, commit-by-commit software evolution.
 

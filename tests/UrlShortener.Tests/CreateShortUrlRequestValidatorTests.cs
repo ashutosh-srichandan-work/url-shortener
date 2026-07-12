@@ -1,6 +1,7 @@
-﻿using FluentAssertions;
-using UrlShortener.Api.DTOs;
-using UrlShortener.Api.Validators;
+using FluentAssertions;
+using FluentValidation;
+using UrlShortener.Application.DTOs;
+using UrlShortener.Application.Validators;
 
 namespace UrlShortener.Tests;
 
@@ -11,7 +12,12 @@ public class CreateShortUrlRequestValidatorTests
     [Fact]
     public void Validate_WithValidRequest_ShouldPass()
     {
-        var request = new CreateShortUrlRequest { Url = "https://www.example.com" };
+        var request = new CreateShortUrlRequest
+        {
+            Url = "https://www.example.com",
+            ExpiresAtUtc = DateTime.UtcNow.AddDays(7)
+        };
+
         var result = _validator.Validate(request);
         result.IsValid.Should().BeTrue();
     }
@@ -69,18 +75,6 @@ public class CreateShortUrlRequestValidatorTests
         {
             Url = "https://example.com",
             CustomAlias = "my-valid-alias_1"
-        };
-        var result = _validator.Validate(request);
-        result.IsValid.Should().BeTrue();
-    }
-
-    [Fact]
-    public void Validate_WithFutureExpiration_ShouldPass()
-    {
-        var request = new CreateShortUrlRequest
-        {
-            Url = "https://example.com",
-            ExpiresAtUtc = DateTime.UtcNow.AddDays(30)
         };
         var result = _validator.Validate(request);
         result.IsValid.Should().BeTrue();
