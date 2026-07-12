@@ -1,8 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using UrlShortener.Api.Data;
 using UrlShortener.Api.Entities;
 using UrlShortener.Api.Models;
+using UrlShortener.Api.Repositories;
 
 namespace UrlShortener.Api.Controllers;
 
@@ -10,16 +9,13 @@ namespace UrlShortener.Api.Controllers;
 [Route("api/urls")]
 public class UrlsController : ControllerBase
 {
-    private readonly AppDbContext _context;
+    private readonly IShortUrlRepository _repository;
 
-    public UrlsController(AppDbContext context)
+    public UrlsController(IShortUrlRepository repository)
     {
-        _context = context;
+        _repository = repository;
     }
 
-    /// <summary>
-    /// Creates a shortened URL.
-    /// </summary>
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] ShortenUrlRequest request)
     {
@@ -31,7 +27,7 @@ public class UrlsController : ControllerBase
 
         var shortCode = request.CustomAlias ?? GenerateShortCode();
 
-        if (await _context.ShortUrls.AnyAsync(u => u.ShortCode == shortCode))
+        if (await _repository.ShortCodeExistsAsync(shortCode))
             return Conflict($"The alias '{shortCode}' is already in use.");
 
         var entity = new ShortUrl
@@ -42,8 +38,7 @@ public class UrlsController : ControllerBase
             CreatedAtUtc = DateTime.UtcNow
         };
 
-        _context.ShortUrls.Add(entity);
-        await _context.SaveChangesAsync();
+        await _repository.CreateAsync(entity);
 
         var baseUrl = $"{Request.Scheme}://{Request.Host}";
         var response = new ShortenUrlResponse
@@ -58,13 +53,10 @@ public class UrlsController : ControllerBase
         return Created(response.ShortUrl, response);
     }
 
-    /// <summary>
-    /// Gets URL details by ID.
-    /// </summary>
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id)
     {
-        var entity = await _context.ShortUrls.FindAsync(id);
+        var entity = await _repository.GetByIdAsync(id);
         if (entity is null)
             return NotFound();
 
@@ -81,13 +73,10 @@ public class UrlsController : ControllerBase
         return Ok(response);
     }
 
-    /// <summary>
-    /// Redirects to the original URL.
-    /// </summary>
     [HttpGet("/{shortCode}")]
     public async Task<IActionResult> RedirectToUrl(string shortCode)
     {
-        var entity = await _context.ShortUrls.FirstOrDefaultAsync(u => u.ShortCode == shortCode);
+        var entity = await _repository.GetByShortCodeAsync(shortCode);
         if (entity is null)
             return NotFound("Short URL not found.");
 
