@@ -6,18 +6,21 @@ using UrlShortener.Api.Services;
 namespace UrlShortener.Api.Controllers;
 
 [ApiController]
-[Route("api/urls")]
-public class UrlsController : ControllerBase
+[Route("api/v1/links")]
+public class LinksController : ControllerBase
 {
     private readonly IUrlShortenerService _service;
     private readonly IValidator<CreateShortUrlRequest> _validator;
 
-    public UrlsController(IUrlShortenerService service, IValidator<CreateShortUrlRequest> validator)
+    public LinksController(IUrlShortenerService service, IValidator<CreateShortUrlRequest> validator)
     {
         _service = service;
         _validator = validator;
     }
 
+    /// <summary>
+    /// Creates a new short link.
+    /// </summary>
     [HttpPost]
     [ProducesResponseType(typeof(ShortUrlResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -53,6 +56,9 @@ public class UrlsController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = response.Id }, response);
     }
 
+    /// <summary>
+    /// Gets link details by ID.
+    /// </summary>
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(ShortUrlResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -78,6 +84,9 @@ public class UrlsController : ControllerBase
         return Ok(response);
     }
 
+    /// <summary>
+    /// Gets analytics/stats for a link.
+    /// </summary>
     [HttpGet("{id:guid}/stats")]
     [ProducesResponseType(typeof(UrlAnalyticsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -102,6 +111,9 @@ public class UrlsController : ControllerBase
         return Ok(response);
     }
 
+    /// <summary>
+    /// Soft-deletes a link.
+    /// </summary>
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -114,6 +126,9 @@ public class UrlsController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// Redirects to the original URL for the given short code.
+    /// </summary>
     [HttpGet("/{shortCode}")]
     [ApiExplorerSettings(IgnoreApi = true)]
     public async Task<IActionResult> RedirectToUrl(string shortCode)
