@@ -11,12 +11,13 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.*" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\UrlShortener.Application\UrlShortener.Application.csproj" />
+    <ProjectReference Include="..\UrlShortener.Domain\UrlShortener.Domain.csproj" />
+    <ProjectReference Include="..\UrlShortener.Infrastructure\UrlShortener.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,8 +1,9 @@
-using Microsoft.EntityFrameworkCore;
-using UrlShortener.Api.Data;
-using UrlShortener.Api.Entities;
+﻿using Microsoft.EntityFrameworkCore;
+using UrlShortener.Domain.Entities;
+using UrlShortener.Domain.Interfaces;
+using UrlShortener.Infrastructure.Data;
 
-namespace UrlShortener.Api.Repositories;
+namespace UrlShortener.Infrastructure.Repositories;
 
 public class ShortUrlRepository : IShortUrlRepository
 {
@@ -20,14 +21,12 @@ public class ShortUrlRepository : IShortUrlRepository
 
     public async Task<ShortUrl?> GetByShortCodeAsync(string shortCode)
     {
-        return await _context.ShortUrls
-            .FirstOrDefaultAsync(u => u.ShortCode == shortCode);
+        return await _context.ShortUrls.FirstOrDefaultAsync(u => u.ShortCode == shortCode);
     }
 
     public async Task<bool> ShortCodeExistsAsync(string shortCode)
     {
-        return await _context.ShortUrls
-            .AnyAsync(u => u.ShortCode == shortCode);
+        return await _context.ShortUrls.AnyAsync(u => u.ShortCode == shortCode);
     }
 
     public async Task<ShortUrl> CreateAsync(ShortUrl shortUrl)

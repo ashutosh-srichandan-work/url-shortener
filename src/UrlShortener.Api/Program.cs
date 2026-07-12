@@ -1,7 +1,8 @@
-using Microsoft.EntityFrameworkCore;
-using UrlShortener.Api.Data;
-using UrlShortener.Api.Repositories;
+﻿using Microsoft.EntityFrameworkCore;
 using UrlShortener.Api.Services;
+using UrlShortener.Domain.Interfaces;
+using UrlShortener.Infrastructure.Data;
+using UrlShortener.Infrastructure.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 

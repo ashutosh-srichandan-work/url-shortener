@@ -1,7 +1,7 @@
-using Microsoft.EntityFrameworkCore;
-using UrlShortener.Api.Entities;
+﻿using Microsoft.EntityFrameworkCore;
+using UrlShortener.Domain.Entities;
 
-namespace UrlShortener.Api.Data;
+namespace UrlShortener.Infrastructure.Data;
 
 public class AppDbContext : DbContext
 {

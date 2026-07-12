@@ -1,5 +1,5 @@
-using UrlShortener.Api.Entities;
-using UrlShortener.Api.Repositories;
+﻿using UrlShortener.Domain.Entities;
+using UrlShortener.Domain.Interfaces;
 
 namespace UrlShortener.Api.Services;
 
