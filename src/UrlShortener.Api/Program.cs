@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using UrlShortener.Api.Data;
 using UrlShortener.Api.Repositories;
+using UrlShortener.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,6 +9,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddScoped<IShortUrlRepository, ShortUrlRepository>();
+builder.Services.AddScoped<IUrlShortenerService, UrlShortenerService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

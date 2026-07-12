@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using UrlShortener.Api.Entities;
 using UrlShortener.Api.Models;
-using UrlShortener.Api.Repositories;
+using UrlShortener.Api.Services;
 
 namespace UrlShortener.Api.Controllers;
 
@@ -9,11 +8,11 @@ namespace UrlShortener.Api.Controllers;
 [Route("api/urls")]
 public class UrlsController : ControllerBase
 {
-    private readonly IShortUrlRepository _repository;
+    private readonly IUrlShortenerService _service;
 
-    public UrlsController(IShortUrlRepository repository)
+    public UrlsController(IUrlShortenerService service)
     {
-        _repository = repository;
+        _service = service;
     }
 
     [HttpPost]
@@ -25,66 +24,45 @@ public class UrlsController : ControllerBase
         if (!Uri.TryCreate(request.Url, UriKind.Absolute, out _))
             return BadRequest("Invalid URL format.");
 
-        var shortCode = request.CustomAlias ?? GenerateShortCode();
-
-        if (await _repository.ShortCodeExistsAsync(shortCode))
-            return Conflict($"The alias '{shortCode}' is already in use.");
-
-        var entity = new ShortUrl
+        try
         {
-            Id = Guid.NewGuid(),
-            OriginalUrl = request.Url,
-            ShortCode = shortCode,
-            CreatedAtUtc = DateTime.UtcNow
-        };
+            var baseUrl = $"{Request.Scheme}://{Request.Host}";
+            var result = await _service.CreateShortUrlAsync(request.Url, request.CustomAlias, baseUrl);
 
-        await _repository.CreateAsync(entity);
+            var response = new ShortenUrlResponse
+            {
+                Id = result.Id,
+                ShortCode = result.ShortCode,
+                ShortUrl = result.ShortUrl,
+                OriginalUrl = result.OriginalUrl,
+                CreatedAt = result.CreatedAtUtc
+            };
 
-        var baseUrl = $"{Request.Scheme}://{Request.Host}";
-        var response = new ShortenUrlResponse
+            return Created(response.ShortUrl, response);
+        }
+        catch (InvalidOperationException ex)
         {
-            Id = entity.Id,
-            ShortCode = entity.ShortCode,
-            ShortUrl = $"{baseUrl}/{entity.ShortCode}",
-            OriginalUrl = entity.OriginalUrl,
-            CreatedAt = entity.CreatedAtUtc
-        };
-
-        return Created(response.ShortUrl, response);
+            return Conflict(ex.Message);
+        }
     }
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id)
     {
-        var entity = await _repository.GetByIdAsync(id);
-        if (entity is null)
+        var details = await _service.GetUrlDetailsAsync(id);
+        if (details is null)
             return NotFound();
 
-        var baseUrl = $"{Request.Scheme}://{Request.Host}";
-        var response = new ShortenUrlResponse
-        {
-            Id = entity.Id,
-            ShortCode = entity.ShortCode,
-            ShortUrl = $"{baseUrl}/{entity.ShortCode}",
-            OriginalUrl = entity.OriginalUrl,
-            CreatedAt = entity.CreatedAtUtc
-        };
-
-        return Ok(response);
+        return Ok(details);
     }
 
     [HttpGet("/{shortCode}")]
     public async Task<IActionResult> RedirectToUrl(string shortCode)
     {
-        var entity = await _repository.GetByShortCodeAsync(shortCode);
-        if (entity is null)
+        var originalUrl = await _service.GetOriginalUrlAsync(shortCode);
+        if (originalUrl is null)
             return NotFound("Short URL not found.");
 
-        return Redirect(entity.OriginalUrl);
-    }
-
-    private static string GenerateShortCode()
-    {
-        return Guid.NewGuid().ToString("N")[..7];
+        return Redirect(originalUrl);
     }
 }
