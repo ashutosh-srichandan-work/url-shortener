@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Mvc;
+using UrlShortener.Api.Entities;
 using UrlShortener.Api.Models;
 
 namespace UrlShortener.Api.Controllers;
@@ -8,7 +9,7 @@ namespace UrlShortener.Api.Controllers;
 [Route("api/urls")]
 public class UrlsController : ControllerBase
 {
-    private static readonly ConcurrentDictionary<string, string> _urlStore = new();
+    private static readonly ConcurrentDictionary<string, ShortUrl> _urlStore = new();
 
     /// <summary>
     /// Creates a shortened URL.
@@ -27,18 +28,50 @@ public class UrlsController : ControllerBase
         if (_urlStore.ContainsKey(shortCode))
             return Conflict($"The alias '{shortCode}' is already in use.");
 
-        _urlStore[shortCode] = request.Url;
+        var entity = new ShortUrl
+        {
+            Id = Guid.NewGuid(),
+            OriginalUrl = request.Url,
+            ShortCode = shortCode,
+            CreatedAtUtc = DateTime.UtcNow
+        };
+
+        _urlStore[shortCode] = entity;
 
         var baseUrl = $"{Request.Scheme}://{Request.Host}";
         var response = new ShortenUrlResponse
         {
-            ShortCode = shortCode,
-            ShortUrl = $"{baseUrl}/{shortCode}",
-            OriginalUrl = request.Url,
-            CreatedAt = DateTime.UtcNow
+            Id = entity.Id,
+            ShortCode = entity.ShortCode,
+            ShortUrl = $"{baseUrl}/{entity.ShortCode}",
+            OriginalUrl = entity.OriginalUrl,
+            CreatedAt = entity.CreatedAtUtc
         };
 
         return Created(response.ShortUrl, response);
+    }
+
+    /// <summary>
+    /// Gets URL details by ID.
+    /// </summary>
+    [HttpGet("{id:guid}")]
+    public IActionResult GetById(Guid id)
+    {
+        var entity = _urlStore.Values.FirstOrDefault(u => u.Id == id);
+        if (entity is null)
+            return NotFound();
+
+        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+        var response = new ShortenUrlResponse
+        {
+            Id = entity.Id,
+            ShortCode = entity.ShortCode,
+            ShortUrl = $"{baseUrl}/{entity.ShortCode}",
+            OriginalUrl = entity.OriginalUrl,
+            CreatedAt = entity.CreatedAtUtc
+        };
+
+        return Ok(response);
     }
 
     /// <summary>
@@ -47,8 +80,8 @@ public class UrlsController : ControllerBase
     [HttpGet("/{shortCode}")]
     public IActionResult Redirect(string shortCode)
     {
-        if (_urlStore.TryGetValue(shortCode, out var originalUrl))
-            return Redirect(originalUrl);
+        if (_urlStore.TryGetValue(shortCode, out var entity))
+            return Redirect(entity.OriginalUrl);
 
         return NotFound("Short URL not found.");
     }
