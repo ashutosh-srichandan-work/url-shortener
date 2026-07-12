@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using FluentValidation;
+using Microsoft.EntityFrameworkCore;
 using UrlShortener.Api.Services;
 using UrlShortener.Domain.Interfaces;
 using UrlShortener.Infrastructure.Data;
@@ -11,6 +12,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddScoped<IShortUrlRepository, ShortUrlRepository>();
 builder.Services.AddScoped<IUrlShortenerService, UrlShortenerService>();
+
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
