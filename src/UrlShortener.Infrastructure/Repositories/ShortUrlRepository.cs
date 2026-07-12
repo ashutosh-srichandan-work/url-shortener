@@ -29,6 +29,21 @@ public class ShortUrlRepository : IShortUrlRepository
         return await _context.ShortUrls.AnyAsync(u => u.ShortCode == shortCode);
     }
 
+    public async Task<(IReadOnlyList<ShortUrl> Items, int TotalCount)> GetAllAsync(int page, int pageSize)
+    {
+        var query = _context.ShortUrls
+            .Where(u => !u.IsDeleted)
+            .OrderByDescending(u => u.CreatedAtUtc);
+
+        var totalCount = await query.CountAsync();
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return (items, totalCount);
+    }
+
     public async Task<ShortUrl> CreateAsync(ShortUrl shortUrl)
     {
         _context.ShortUrls.Add(shortUrl);

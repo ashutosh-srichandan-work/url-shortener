@@ -5,11 +5,20 @@ namespace UrlShortener.Api.Services;
 
 public interface IUrlShortenerService
 {
+    Task<PagedShortUrlResult> GetAllAsync(int page, int pageSize, string baseUrl);
     Task<CreateShortUrlResult> CreateShortUrlAsync(string url, string? customAlias, DateTime? expiresAtUtc, string baseUrl);
     Task<string?> GetOriginalUrlAndTrackClickAsync(string shortCode);
     Task<ShortUrlDetails?> GetUrlDetailsAsync(Guid id);
     Task<ShortUrlAnalytics?> GetAnalyticsAsync(Guid id);
     Task<bool> DeleteUrlAsync(Guid id);
+}
+
+public class PagedShortUrlResult
+{
+    public IReadOnlyList<ShortUrlDetails> Items { get; set; } = [];
+    public int TotalCount { get; set; }
+    public int Page { get; set; }
+    public int PageSize { get; set; }
 }
 
 public class CreateShortUrlResult
@@ -54,6 +63,32 @@ public class UrlShortenerService : IUrlShortenerService
     public UrlShortenerService(IShortUrlRepository repository)
     {
         _repository = repository;
+    }
+
+    public async Task<PagedShortUrlResult> GetAllAsync(int page, int pageSize, string baseUrl)
+    {
+        var (items, totalCount) = await _repository.GetAllAsync(page, pageSize);
+
+        var details = items.Select(entity => new ShortUrlDetails
+        {
+            Id = entity.Id,
+            OriginalUrl = entity.OriginalUrl,
+            ShortCode = entity.ShortCode,
+            ShortUrl = $"{baseUrl.TrimEnd('/')}/{entity.ShortCode}",
+            CreatedAtUtc = entity.CreatedAtUtc,
+            ExpiresAtUtc = entity.ExpiresAtUtc,
+            ClickCount = entity.ClickCount,
+            LastAccessedAtUtc = entity.LastAccessedAtUtc,
+            Status = GetStatus(entity)
+        }).ToList();
+
+        return new PagedShortUrlResult
+        {
+            Items = details,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<CreateShortUrlResult> CreateShortUrlAsync(string url, string? customAlias, DateTime? expiresAtUtc, string baseUrl)

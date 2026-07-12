@@ -22,6 +22,47 @@ public class LinksController : ControllerBase
     }
 
     /// <summary>
+    /// Lists all links with pagination.
+    /// </summary>
+    [HttpGet]
+    [ProducesResponseType(typeof(PagedResponse<ShortUrlResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 1;
+        if (pageSize > 100) pageSize = 100;
+
+        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+        var result = await _service.GetAllAsync(page, pageSize, baseUrl);
+
+        var totalPages = (int)Math.Ceiling(result.TotalCount / (double)result.PageSize);
+
+        var response = new PagedResponse<ShortUrlResponse>
+        {
+            Items = result.Items.Select(d => new ShortUrlResponse
+            {
+                Id = d.Id,
+                OriginalUrl = d.OriginalUrl,
+                ShortCode = d.ShortCode,
+                ShortUrl = d.ShortUrl,
+                CreatedAtUtc = d.CreatedAtUtc,
+                ExpiresAtUtc = d.ExpiresAtUtc,
+                ClickCount = d.ClickCount,
+                LastAccessedAtUtc = d.LastAccessedAtUtc,
+                Status = d.Status
+            }).ToList(),
+            Page = result.Page,
+            PageSize = result.PageSize,
+            TotalCount = result.TotalCount,
+            TotalPages = totalPages,
+            HasNextPage = result.Page < totalPages,
+            HasPreviousPage = result.Page > 1
+        };
+
+        return Ok(response);
+    }
+
+    /// <summary>
     /// Creates a new short link.
     /// </summary>
     [HttpPost]
