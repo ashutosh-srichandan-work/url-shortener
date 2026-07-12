@@ -1,5 +1,7 @@
-﻿using FluentValidation;
+﻿using System.Threading.RateLimiting;
+using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using UrlShortener.Api.DTOs;
 using UrlShortener.Api.Services;
 
@@ -7,6 +9,7 @@ namespace UrlShortener.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/links")]
+[EnableRateLimiting("fixed")]
 public class LinksController : ControllerBase
 {
     private readonly IUrlShortenerService _service;
@@ -22,6 +25,7 @@ public class LinksController : ControllerBase
     /// Creates a new short link.
     /// </summary>
     [HttpPost]
+    [EnableRateLimiting("create")]
     [ProducesResponseType(typeof(ShortUrlResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
@@ -130,6 +134,7 @@ public class LinksController : ControllerBase
     /// Redirects to the original URL for the given short code.
     /// </summary>
     [HttpGet("/{shortCode}")]
+    [DisableRateLimiting]
     [ApiExplorerSettings(IgnoreApi = true)]
     public async Task<IActionResult> RedirectToUrl(string shortCode)
     {

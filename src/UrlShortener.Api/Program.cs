@@ -1,4 +1,6 @@
-﻿using FluentValidation;
+﻿using System.Threading.RateLimiting;
+using FluentValidation;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using UrlShortener.Api.Middleware;
@@ -34,6 +36,27 @@ try
     builder.Services.AddHealthChecks()
         .AddDbContextCheck<AppDbContext>();
 
+    builder.Services.AddRateLimiter(options =>
+    {
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+        options.AddFixedWindowLimiter("fixed", limiterOptions =>
+        {
+            limiterOptions.PermitLimit = 100;
+            limiterOptions.Window = TimeSpan.FromMinutes(1);
+            limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+            limiterOptions.QueueLimit = 10;
+        });
+
+        options.AddFixedWindowLimiter("create", limiterOptions =>
+        {
+            limiterOptions.PermitLimit = 20;
+            limiterOptions.Window = TimeSpan.FromMinutes(1);
+            limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+            limiterOptions.QueueLimit = 5;
+        });
+    });
+
     builder.Services.AddControllers();
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen(options =>
@@ -59,6 +82,7 @@ try
     }
 
     app.UseMiddleware<GlobalExceptionMiddleware>();
+    app.UseRateLimiter();
     app.UseSerilogRequestLogging();
 
     if (app.Environment.IsDevelopment())
